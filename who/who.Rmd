@@ -202,7 +202,7 @@ mortality_and_birth_rate <- merge(
   by = c("Country")
 ) %>% 
   mutate(
-    infant_death_rate = total_infant_deaths / num_of_births
+    infant_survival_rate = 1.0 - total_infant_deaths / num_of_births
   )
 ```
 
@@ -210,7 +210,7 @@ mortality_and_birth_rate <- merge(
 ```{r}
 mortality_and_birth_rate %>% 
   filter(Country %in% c('Mongolia', 'United States of America', 'Mexico', 'Sweden', 'India', 'China')) %>% 
-  ggplot(aes(x = Year, y = infant_death_rate, color = Country)) + 
+  ggplot(aes(x = Year, y = infant_survival_rate, color = Country)) + 
     geom_line()
 ```
 
@@ -229,7 +229,7 @@ merge(
     Year == 2015,
     Country %in% c('Mongolia', 'United States of America', 'Mexico', 'Sweden')
   ) %>% 
-  ggplot(aes(x = healthcare_expenditure_perc_gdp, y = infant_death_rate, label = Country)) + 
+  ggplot(aes(x = healthcare_expenditure_perc_gdp, y = infant_survival_rate, label = Country)) + 
     geom_point() + 
     geom_text()
 ```
@@ -245,9 +245,10 @@ merge(
   filter(
     Year == 2015
   ) %>% 
-  ggplot(aes(x = healthcare_expenditure_perc_gdp, y = infant_death_rate, label = Country)) + 
+  ggplot(aes(x = healthcare_expenditure_perc_gdp, y = infant_survival_rate, label = Country)) + 
     geom_point() + 
-    geom_text()
+    geom_text() +
+    geom_smooth(method = "lm")
 ```
 
 Here we do observe some outlier countries:
