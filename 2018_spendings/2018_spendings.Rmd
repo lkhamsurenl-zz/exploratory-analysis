@@ -48,8 +48,14 @@ assets <- read.csv(
 )
 ```
 
-
 # How?
+
+### Summarise the dataset 
+
+```{r}
+summary(spendings)
+```
+
 
 ### How much money did I spend on traveling?
 
@@ -241,6 +247,14 @@ https://www.usatoday.com/story/money/personalfinance/budget-and-spending/2018/05
 ### How does my spending compare against the SF average?
 
 ### Am I doing better than people with similar income?
+
+
+### How much is my total asset?
+
+```{r}
+(assets %>% summarise(total = sum(amount)))$total
+```
+
 
 ### Do I have an enough emergency fund?
 

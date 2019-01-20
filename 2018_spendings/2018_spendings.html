@@ -1643,6 +1643,24 @@ assets &lt;- read.csv(
 </div>
 <div id="how" class="section level1">
 <h1>How?</h1>
+<div id="summarise-the-dataset" class="section level3">
+<h3>Summarise the dataset</h3>
+<pre class="r"><code>summary(spendings)</code></pre>
+<pre><code>##       date              merchant             amount        
+##  Min.   :2018-01-01   Length:685         Min.   :    0.50  
+##  1st Qu.:2018-04-28   Class :character   1st Qu.:   10.15  
+##  Median :2018-07-19   Mode  :character   Median :   17.68  
+##  Mean   :2018-07-13                      Mean   :  111.59  
+##  3rd Qu.:2018-10-09                      3rd Qu.:   29.11  
+##  Max.   :2018-12-28                      Max.   :10000.00  
+##  main_category      sub_category       month_of_date   
+##  Length:685         Length:685         Min.   : 1.000  
+##  Class :character   Class :character   1st Qu.: 4.000  
+##  Mode  :character   Mode  :character   Median : 7.000  
+##                                        Mean   : 6.895  
+##                                        3rd Qu.:10.000  
+##                                        Max.   :12.000</code></pre>
+</div>
 <div id="how-much-money-did-i-spend-on-traveling" class="section level3">
 <h3>How much money did I spend on traveling?</h3>
 <pre class="r"><code>spendings %&gt;% 
@@ -1799,6 +1817,11 @@ assets &lt;- read.csv(
 </div>
 <div id="am-i-doing-better-than-people-with-similar-income" class="section level3">
 <h3>Am I doing better than people with similar income?</h3>
+</div>
+<div id="how-much-is-my-total-asset" class="section level3">
+<h3>How much is my total asset?</h3>
+<pre class="r"><code>(assets %&gt;% summarise(total = sum(amount)))$total</code></pre>
+<pre><code>## [1] 97474.4</code></pre>
 </div>
 <div id="do-i-have-an-enough-emergency-fund" class="section level3">
 <h3>Do I have an enough emergency fund?</h3>
