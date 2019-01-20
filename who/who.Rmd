@@ -148,23 +148,80 @@ healthcare_gdp <- healthcare_gdp %>%
 
 ```
 
+```{r}
+demographic_rate_2013 <- read.csv(
+  "2013_demographic_rates.csv",
+  stringsAsFactors = F
+) %>% 
+  rename(Country = X)
+```
 
-### How does mortality rate compare for so called developing countries against United States?
 
 ```{r}
-mortality_rate %>% 
-  filter(Country %in% c('Mongolia', 'United States of America', 'Mexico', 'Sweden')) %>% 
-  ggplot(aes(x = Year, y = Number.of.under.five.deaths..thousands., color = Country)) + 
+population_2016 <- read.csv(
+  "population_2016.csv",
+  stringsAsFactors = F
+) %>% 
+  transmute(
+    Country = Country,
+    Population..in.thousands..total = as.numeric(gsub(" ", "", Population..in.thousands..total))
+  )
+```
+
+### Summarize each dataset
+
+```{r}
+summary(mortality_rate)
+```
+
+```{r}
+summary(healthcare_gdp)
+```
+
+
+```{r}
+summary(demographic_rate_2013)
+```
+
+### How does mortality rate compare for some countries of interest against United States?
+
+Here since we do not have an accurate data on actual birth rate for each country, we will use 2013 birth rate as an estimate and assume it's static across each year.
+
+```{r}
+total_births <- merge(
+  demographic_rate_2013,
+  population_2016,
+  by=c("Country")
+) %>% 
+  mutate(num_of_births = Population..in.thousands..total * Crude.birth.rate..per.1000.population.)
+  
+
+mortality_and_birth_rate <- merge(
+  mortality_rate %>% mutate(total_infant_deaths = 1000.0 * Number.of.infant.deaths..thousands.),
+  total_births,
+  by = c("Country")
+) %>% 
+  mutate(
+    infant_death_rate = total_infant_deaths / num_of_births
+  )
+```
+
+
+```{r}
+mortality_and_birth_rate %>% 
+  filter(Country %in% c('Mongolia', 'United States of America', 'Mexico', 'Sweden', 'India', 'China')) %>% 
+  ggplot(aes(x = Year, y = infant_death_rate, color = Country)) + 
     geom_line()
 ```
 
-As expected, Sweden has a very good mortality rate, but Mongolia has made tremendous progress towards reducing the mortality rate (which is now comparable to that of Sweden). It is very odd that US has extremely high mortality rate. 
+As expected, Sweden has a very good mortality rate, but Mongolia has made tremendous progress towards reducing the mortality rate (which is now comparable to that of United States). 
+
 
 ### How does current mortality rate looks among countries?
 
 ```{r}
 merge(
-  mortality_rate,
+  mortality_and_birth_rate,
   healthcare_gdp,
   by=c('Country', 'Year')
 ) %>% 
@@ -172,7 +229,7 @@ merge(
     Year == 2015,
     Country %in% c('Mongolia', 'United States of America', 'Mexico', 'Sweden')
   ) %>% 
-  ggplot(aes(x = healthcare_expenditure_perc_gdp, y = Number.of.under.five.deaths..thousands., label = Country)) + 
+  ggplot(aes(x = healthcare_expenditure_perc_gdp, y = infant_death_rate, label = Country)) + 
     geom_point() + 
     geom_text()
 ```
@@ -181,18 +238,21 @@ How is the correlation between healthcare expenditure percenatage and mortality 
 
 ```{r}
 merge(
-  mortality_rate,
+  mortality_and_birth_rate,
   healthcare_gdp,
   by=c('Country', 'Year')
 ) %>% 
   filter(
     Year == 2015
   ) %>% 
-  ggplot(aes(x = healthcare_expenditure_perc_gdp, y = Number.of.under.five.deaths..thousands., label = Country)) + 
+  ggplot(aes(x = healthcare_expenditure_perc_gdp, y = infant_death_rate, label = Country)) + 
     geom_point() + 
     geom_text()
 ```
 
+Here we do observe some outlier countries:
+
+1. Sierra Leone spends significant portion of the country's GDP on healthcare but survival rate is about 93%, which is relatively low among all countries (but note here that whole world made tremendous progress overall).
 
 
 # How: How do we know if we have solved the problem?
