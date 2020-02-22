@@ -1,3 +1,4 @@
+import logging
 import os
 from os import walk
 
@@ -8,14 +9,16 @@ def main():
     for (dirpath, dirnames, filenames) in walk(PWD):
         for filename in filenames:
             name_chunks = filename.split('.')
+            fullname = os.path.join(dirpath, filename)
             if (
                 not name_chunks or
-                name_chunks[-1] != 'html' or
+                name_chunks[-1] not in ['html', 'ipynb'] or
                 'Rproj' in dirpath or
-                (len(name_chunks) > 2 and name_chunks[-2] == 'nb')
+                (len(name_chunks) > 2 and name_chunks[-2] == 'nb') or
+                '.ipynb_checkpoints' in fullname
                 ):
                 continue
-            paths.append(os.path.join(dirpath, filename))
+            paths.append(fullname)
 
     # Sort them
     paths.sort()
@@ -30,11 +33,8 @@ def main():
         ['<li><a href="{}">{}</a></li>'.format(path.replace(PWD, '.'), path.replace(PWD, '')) for path in paths]
     ))
 
-    with open(os.path.join(PWD, 'index.html'), 'wb') as f:
-        try:
-            f.write(content)
-        except Exception, e:
-            logging.error("Error in writing output: {e}".format(**locals()))
+    with open(os.path.join(PWD, 'index.html'), 'w') as f:
+        f.write(content)
 
 if __name__ == "__main__":
     main()
