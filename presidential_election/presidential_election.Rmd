@@ -10,6 +10,7 @@ output:
 ---
 
 ```{r include=FALSE}
+library(maps)
 library(tidyverse)
 library(ggrepel)
 ```
@@ -37,12 +38,20 @@ big2_data <- full_data %>%
 # Helper functions:
 
 ```{r}
+main_states <- map_data("state")
+
 year_scale <- function() {
   scale_x_discrete(limits = seq(1976, 2016, 4))
 }
+scale_color <- function() {
+  scale_color_manual(values=c("#56B4E9", "#D55E00"))
+}
+scale_fill <- function() {
+  scale_fill_manual(values=c("#56B4E9", "#D55E00"))
+}
 # add a line and point to each data point to highlight
 line <- function() {
-  c(geom_line(), geom_point(), year_scale())
+  c(geom_line(), geom_point(), year_scale(), scale_color())
 }
 
 state_plot <- function(df, states) {
@@ -51,6 +60,7 @@ state_plot <- function(df, states) {
     ggplot(aes(x = year, y = votes_in_perc, color = party)) + 
       geom_line() + 
       geom_point() + 
+      scale_color() + 
       facet_wrap(. ~ state_po)
 }
 ```
@@ -104,7 +114,8 @@ big2_data %>%
   summarise(party_perc = sum(candidatevotes) / sum(totalvotes)) %>% 
   ggplot(aes(x = year, y = party_perc, fill = party)) + 
     geom_bar(stat="identity") + 
-    year_scale()
+    year_scale() + 
+    scale_fill()
 ```
 
 1992 was, by far, the year where voters elected to prefer candidate other than 2 big parties.
@@ -132,7 +143,8 @@ widest_margin_year %>%
     labs(title = paste0(
       "Highest margin between 2 parties was in ", 
       widest_margin_year %>% select(year)
-    ))
+    )) + 
+    scale_fill()
 ```
 
 ### States won 
@@ -155,7 +167,8 @@ big2_data %>%
   pivot_longer(cols=c(democrat, republic), names_to="party", values_to = "states_won") %>% 
   ggplot(aes(x = year, y = states_won, fill = party)) + 
     geom_bar(stat="identity", position="dodge") + 
-    year_scale()
+    year_scale() + 
+    scale_fill()
 ```
 
 Let's pay closer attention to 2000 and 2016 as they seem to closely resemble each other:
@@ -179,9 +192,55 @@ state_plot(
 
 Here you will notice that all 3 states have upward trend of voting more towards republican candidates for last 3 elections. If we assume the trend will continue with the current trajectory, the 2020 democratic candidate needs to be able to find other states to find some hope of winning.
 
+### 2008 states map
+
+```{r}
+state_winners <- function(df) {
+  df %>% 
+  select(year, state, party, votes_in_perc) %>% 
+  mutate(region = tolower(state)) %>% 
+  group_by(year, region, party) %>% 
+  summarise(votes_in_perc= sum(votes_in_perc)) %>% 
+  pivot_wider(id_cols = c(year, region), names_from = party, values_from = votes_in_perc) %>% 
+  mutate(winner_party = ifelse(democrat > republican, "democrat", "republican"))
+}
+
+state_map <- function(df) {
+  df %>%
+  inner_join(main_states, by=c("region")) %>% 
+  ggplot() + 
+    geom_polygon(aes(x=long, y=lat, group=group, fill = winner_party), 
+                color="white", size = 0.2) + 
+    scale_fill()
+}
+
+big2_data %>% 
+  state_winners() %>% 
+  filter(year == 2008) %>% 
+  state_map() 
+```
+```{r}
+changed_states <- big2_data %>% 
+  state_winners() %>% 
+  select(year, region, winner_party) %>% 
+  filter(year %in% c(2008, 2016)) %>% 
+  pivot_wider(id_cols=c(region), names_from = year, values_from = winner_party) %>% 
+  filter(`2008` != `2016`) 
+
+main_states %>% 
+  left_join(changed_states, by=c("region")) %>% 
+  ggplot() + 
+    geom_polygon(aes(x=long, y=lat, group=group, fill = `2016`), 
+                color="white", size = 0.2)
+```
+
+Those are all states that have turned from democratic to republican in 2016 election vs 2008.
+
+
 # Summary
 
 * For last 3 elections, Democratic party has won the popular vote but the margin has been decreasing
 * We observe ever growing margin of democratic turn for California
 * So called swing states of PA, Wisconsin, Florida all have elected Republican for the 2016 election (but all has elected Obama for 2008 and 2012)
 * Ronald Reagon was the single most popular candidate who won by more than 16% margin in 1984.
+* We also took a closer look into states where the race was particularly close and found that in all Floridy, Pennsylvania, and Wisconsin there have been upward trend of republican vote, even during Obama candidacy, Trump won presidency by winning on all of those states.
