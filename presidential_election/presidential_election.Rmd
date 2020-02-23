@@ -29,7 +29,8 @@ DEM <- "democrat"
 REP <- "republican"
 big2_data <- full_data %>% 
   filter(party %in% c(DEM, REP)) %>% 
-  mutate(candidatevotes_in_millions = candidatevotes / 1e6)
+  mutate(candidatevotes_in_millions = candidatevotes / 1e6) %>% 
+  mutate(votes_in_perc = candidatevotes / totalvotes)
 ```
 
 
@@ -44,14 +45,13 @@ line <- function() {
   c(geom_line(), geom_point(), year_scale())
 }
 
-state_plot <- function(st) {
-  state_name <- big2_data %>% filter(state_po == st) %>% select(state) %>% unique()
-  
-  big2_data %>% 
-    filter(state_po == st) %>%  
-    ggplot(aes(x = year, y = candidatevotes_in_millions, color = party)) + 
-      line() + 
-      labs(title=paste0("Party total vote comparison in ", state_name)) 
+state_plot <- function(df, states) {
+  df %>% 
+    filter(state_po %in% states) %>%  
+    ggplot(aes(x = year, y = votes_in_perc, color = party)) + 
+      geom_line() + 
+      geom_point() + 
+      facet_wrap(. ~ state_po)
 }
 ```
 
@@ -75,23 +75,11 @@ NOTE: For the last 3 elections, democratis have won the popular vote.
 ### Democratic candidate votes in certain states of interests
 
 ```{r}
-state_plot("CA")
+state_plot(big2_data, c("CA", "PA", "WI", "FL"))
 ```
 
 NOTES: 
 1. Interestingly around 30 years ago, CA was actually a republican state, and since then it's been mostly DEM and ever increasing
-
-```{r}
-state_plot("PA")
-```
-
-```{r}
-state_plot("WI")
-```
-
-```{r}
-state_plot("FL")
-```
 
 
 ### Popularity margin of Democratic candidate
@@ -170,6 +158,26 @@ big2_data %>%
     year_scale()
 ```
 
+Let's pay closer attention to 2000 and 2016 as they seem to closely resemble each other:
+
+```{r}
+state_plot(big2_data, c("CA", "PA", "WI", "FL")) + 
+  geom_vline(linetype="dashed", xintercept = c(2000, 2016))
+```
+
+Interestengly it looks like an almost tie in both Florida and Wisconsin in 2000 and turned slight republic in 2016. Pennsylvania is an exception (has been traditionally democratic state since 1990 except on 2016).
+
+Let's zoom in on last 3 elections on those 3 states:
+
+```{r}
+state_plot(
+  big2_data %>% filter(year >= 2008), 
+  c("CA", "PA", "WI", "FL")
+) + 
+  geom_smooth(aes(group = party), method = "lm", se=FALSE, linetype = "dashed")
+```
+
+Here you will notice that all 3 states have upward trend of voting more towards republican candidates for last 3 elections. If we assume the trend will continue with the current trajectory, the 2020 democratic candidate needs to be able to find other states to find some hope of winning.
 
 # Summary
 
