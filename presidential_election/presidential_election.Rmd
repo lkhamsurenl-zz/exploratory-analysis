@@ -1,0 +1,134 @@
+---
+title: "presidential_election"
+output:
+  html_document:
+    df_print: paged
+    toc: yes
+    toc_depth: 2
+    code_folding: show
+  html_notebook: default
+---
+
+```{r include=FALSE}
+library(tidyverse)
+library(ggrepel)
+```
+
+# Why: Why is this a real problem that is worth solving?
+
+In this document, we perform basic exploraty analysis to gain some insights into US Presidential election. 
+
+
+Source: https://dataverse.harvard.edu/file.xhtml?persistentId=doi:10.7910/DVN/42MVDX/MFU99O&version=5.0
+
+```{r}
+full_data <- read_csv("dataset/1976-2016-president.csv") 
+
+# for the most of the analysis, we will keep our focus in 2 of the biggest parties
+DEM <- "democrat"
+REP <- "republican"
+big2_data <- full_data %>% 
+  filter(party %in% c(DEM, REP)) %>% 
+  mutate(candidatevotes_in_millions = candidatevotes / 1e6)
+```
+
+
+
+### Total votes across all states by party
+
+```{r}
+big2_data %>% 
+  group_by(candidate, party, year) %>% 
+  summarise(total_vote = sum(candidatevotes_in_millions)) %>% 
+  filter(total_vote > 5) %>% 
+  ggplot(aes(x = year, y = total_vote, color = party)) + 
+    geom_line() + 
+    geom_point() + 
+    geom_text(aes(label = candidate), vjust = -0.5, check_overlap = T, size=3) +
+    ylab("Total vote in Millions")
+```
+
+NOTE: For the last 3 elections, democratis have won the popular vote.
+
+### Democratic candidate votes in certain states of interests
+
+```{r}
+state_plot <- function(st) {
+  state_name <- big2_data %>% filter(state_po == st) %>% select(state) %>% unique()
+  big2_data %>% 
+    filter(state_po == st) %>%  
+    ggplot(aes(x = year, y = candidatevotes_in_millions, color = party)) + 
+      geom_line() + 
+      geom_point() + 
+      labs(title=paste0("Party total vote comparison in ", state_name)) 
+}
+
+state_plot("CA")
+```
+
+NOTES: 
+1. Interestingly around 30 years ago, CA was actually a republican state, and since then it's been mostly DEM and ever increasing
+
+```{r}
+state_plot("PA")
+```
+
+```{r}
+state_plot("WI")
+```
+
+```{r}
+state_plot("FL")
+```
+
+
+### Popularity margin of Democratic candidate
+
+```{r}
+big2_data %>% 
+  group_by(year, party) %>% 
+  summarise(
+    candidate_total = sum(candidatevotes) / sum(totalvotes)
+  ) %>% 
+  pivot_wider(names_from = party, values_from = candidate_total) %>% 
+  mutate(democrat_winning_margin = democrat - republican) %>% 
+  ggplot(aes(x = year, y = democrat_winning_margin)) + 
+    geom_point() + 
+    geom_line()
+```
+
+NOTE: It is very much cyclical
+
+
+### Who has won by biggest margin?
+
+```{r}
+widest_margin_year <- big2_data %>% 
+  group_by(year, party) %>% 
+  summarise(
+    candidate_total = sum(candidatevotes) / sum(totalvotes)
+  ) %>% 
+  pivot_wider(names_from = party, values_from = candidate_total) %>% 
+  mutate(margin = abs(democrat - republican)) %>% 
+  arrange(desc(margin)) %>% 
+  head(1)
+
+widest_margin_year %>% 
+  inner_join(big2_data, by="year") %>% 
+  group_by(candidate) %>% 
+  summarise(total_votes_in_millions = sum(candidatevotes_in_millions)) %>% 
+  ggplot(aes(x = candidate, y = total_votes_in_millions, fill = candidate)) + 
+    geom_bar(stat="identity") + 
+    geom_text(aes(label = round(total_votes_in_millions, 2)), vjust = -0.5) + 
+    labs(title = paste0(
+      "Highest margin between 2 parties was in ", 
+      widest_margin_year %>% select(year)
+    ))
+```
+
+# Summary
+
+* For last 3 elections, Democratic party has won the popular vote but the margin has been decreasing
+* We observe ever growing margin of democratic turn for California
+* So called swing states of PA, Wisconsin, Florida all have elected Republican for the 2016 election (but all has elected Obama for 2008 and 2012)
+* Ronald Reagon was the single most popular candidate who won by more than 16% margin in 1984.
