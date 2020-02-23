@@ -33,6 +33,29 @@ big2_data <- full_data %>%
 ```
 
 
+# Helper functions:
+
+```{r}
+year_scale <- function() {
+  scale_x_discrete(limits = seq(1976, 2016, 4))
+}
+# add a line and point to each data point to highlight
+line <- function() {
+  c(geom_line(), geom_point(), year_scale())
+}
+
+state_plot <- function(st) {
+  state_name <- big2_data %>% filter(state_po == st) %>% select(state) %>% unique()
+  
+  big2_data %>% 
+    filter(state_po == st) %>%  
+    ggplot(aes(x = year, y = candidatevotes_in_millions, color = party)) + 
+      line() + 
+      labs(title=paste0("Party total vote comparison in ", state_name)) 
+}
+```
+
+
 
 ### Total votes across all states by party
 
@@ -42,8 +65,7 @@ big2_data %>%
   summarise(total_vote = sum(candidatevotes_in_millions)) %>% 
   filter(total_vote > 5) %>% 
   ggplot(aes(x = year, y = total_vote, color = party)) + 
-    geom_line() + 
-    geom_point() + 
+    line() + 
     geom_text(aes(label = candidate), vjust = -0.5, check_overlap = T, size=3) +
     ylab("Total vote in Millions")
 ```
@@ -53,16 +75,6 @@ NOTE: For the last 3 elections, democratis have won the popular vote.
 ### Democratic candidate votes in certain states of interests
 
 ```{r}
-state_plot <- function(st) {
-  state_name <- big2_data %>% filter(state_po == st) %>% select(state) %>% unique()
-  big2_data %>% 
-    filter(state_po == st) %>%  
-    ggplot(aes(x = year, y = candidatevotes_in_millions, color = party)) + 
-      geom_line() + 
-      geom_point() + 
-      labs(title=paste0("Party total vote comparison in ", state_name)) 
-}
-
 state_plot("CA")
 ```
 
@@ -93,12 +105,21 @@ big2_data %>%
   pivot_wider(names_from = party, values_from = candidate_total) %>% 
   mutate(democrat_winning_margin = democrat - republican) %>% 
   ggplot(aes(x = year, y = democrat_winning_margin)) + 
-    geom_point() + 
-    geom_line()
+    line()
 ```
 
 NOTE: It is very much cyclical
 
+```{r}
+big2_data %>% 
+  group_by(party, year) %>% 
+  summarise(party_perc = sum(candidatevotes) / sum(totalvotes)) %>% 
+  ggplot(aes(x = year, y = party_perc, fill = party)) + 
+    geom_bar(stat="identity") + 
+    year_scale()
+```
+
+1992 was, by far, the year where voters elected to prefer candidate other than 2 big parties.
 
 ### Who has won by biggest margin?
 
@@ -125,6 +146,30 @@ widest_margin_year %>%
       widest_margin_year %>% select(year)
     ))
 ```
+
+### States won 
+
+```{r}
+big2_data %>% 
+  select(year, state_po, party, candidatevotes) %>% 
+  group_by(year, state_po, party) %>% 
+  summarise(candidatevotes = sum(candidatevotes)) %>% 
+  pivot_wider(id_cols = c(year, state_po), names_from = party, values_from = candidatevotes) %>% 
+  mutate(
+    dem_win = democrat > republican,
+    rep_win = !dem_win
+  ) %>% 
+  group_by(year) %>%
+  summarise(
+    democrat = sum(dem_win, na.rm = T),
+    republic = sum(rep_win, na.rm = T)
+  ) %>% 
+  pivot_longer(cols=c(democrat, republic), names_to="party", values_to = "states_won") %>% 
+  ggplot(aes(x = year, y = states_won, fill = party)) + 
+    geom_bar(stat="identity", position="dodge") + 
+    year_scale()
+```
+
 
 # Summary
 
