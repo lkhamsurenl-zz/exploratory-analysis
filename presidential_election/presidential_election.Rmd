@@ -243,4 +243,4 @@ Those are all states that have turned from democratic to republican in 2016 elec
 * We observe ever growing margin of democratic turn for California
 * So called swing states of PA, Wisconsin, Florida all have elected Republican for the 2016 election (but all has elected Obama for 2008 and 2012)
 * Ronald Reagon was the single most popular candidate who won by more than 16% margin in 1984.
-* We also took a closer look into states where the race was particularly close and found that in all Floridy, Pennsylvania, and Wisconsin there have been upward trend of republican vote, even during Obama candidacy, Trump won presidency by winning on all of those states.
+* We also took a closer look into states where the race was particularly close and found that in all of Florida, Pennsylvania, and Wisconsin there have been upward trend of republican votes, even during Obama candidacy, and in 2016 Trump won presidency by winning on all of those states. If we believe the trend of last 12 years will likely continue, then we will expect Republican candidate to win the election in those states in 2020.
