@@ -12,22 +12,13 @@ library(visNetwork)
 CONCEPTS_FILENAME <- "concepts.csv"
 RISK_FACTORS_FILENAME <- "risk_factors.csv"
 
-# jscode <- '
-# var down = {};
-# $(document).keydown(function(e) {
-#   down[e.keyCode] = true;
-# }).keyup(function(e) {
-# if (down[13] && down[91]) {
-#   $("#save").click()
-# }
-#   down[e.keyCode] = false;
-# });
-# '
+CONCEPTS_TAB <- "concepts"
+RISK_FACTORS_TAB <- "riskFactors"
+VISUALIZATION_TAB <- "visualizations"
 
 ui <- function(request) {
   fluidPage(
     theme = shinytheme("paper"),
-    # tags$head(tags$script(HTML(jscode))),
     shinyjs::useShinyjs(),
     shinyFeedback::useShinyFeedback(),
     titlePanel("Non communicable disease risk factors"),
@@ -37,15 +28,13 @@ ui <- function(request) {
         hr(),
         actionButton("save", "Save", class="btn-success")
       ),
-      
-      # Show currently selected CSV file
       mainPanel(
         tabsetPanel(
           id = "options",
           type = "tabs",
-          tabPanel("Concepts", value = "concepts", dataTableOutput("conceptsCSV")),
-          tabPanel("Risk Factors", value = "riskFactors", dataTableOutput("riskFactorsCSV")),
-          tabPanel("Visualization", value = "visualization", visNetworkOutput("graph"))
+          tabPanel("Concepts", value = CONCEPTS_TAB, dataTableOutput("conceptsCSV")),
+          tabPanel("Risk Factors", value = RISK_FACTORS_TAB, dataTableOutput("riskFactorsCSV")),
+          tabPanel("Visualization", value = VISUALIZATION_TAB, visNetworkOutput("graph"))
         )
       )
     )
@@ -61,7 +50,7 @@ server <- function(input, output, session) {
   )
   
   observeEvent(input$options, {
-    if (input$options == "visualization") {
+    if (input$options == VISUALIZATION_TAB) {
       shinyjs::disable("save")
     } else {
       shinyjs::enable("save")
@@ -69,7 +58,9 @@ server <- function(input, output, session) {
   })
   
   output$inputs <- renderUI({
-    if (input$options == "concepts") {
+    req(input$options %in% c(CONCEPTS_TAB, RISK_FACTORS_TAB))
+    
+    if (input$options == CONCEPTS_TAB) {
       div(
         textInput("conceptId", "Concept ID"),
         textInput("conceptName", "Concept Name")
@@ -84,21 +75,21 @@ server <- function(input, output, session) {
     }
   })
   
-  ### Concepts
   output$conceptsCSV <- renderDataTable({
     dat$concepts
   })
   
-  ### Risk factors 
   output$riskFactorsCSV <- renderDataTable({
     dat$riskFactors
   })
   
   # save output, depending on type
   observeEvent(input$save, {
-    req(input$options %in% c("concepts", "riskFactors"))
-    if (input$options == "concepts") {
+    req(input$options %in% c(CONCEPTS_TAB, RISK_FACTORS_TAB))
+    
+    if (input$options == CONCEPTS_TAB) {
       req(input$conceptId, input$conceptName)
+      
       # validate concept id
       isConceptIdNumeric <- grepl("^[0-9]+$", input$conceptId, perl = T)
       shinyFeedback::feedbackDanger("conceptId", !isConceptIdNumeric, "Concept is not valid numeric!")
@@ -145,8 +136,9 @@ server <- function(input, output, session) {
   ### visualization
   output$graph <- renderVisNetwork({
     nodes <- dat$concepts %>% 
-      select(concept_name) %>% 
-      transmute(id = concept_name, label = concept_name)
+      select(concept_name) %>%
+      transmute(id = concept_name, label = concept_name) %>% 
+      mutate(font.size = 10)
     
     edges <- dat$riskFactors %>% 
       inner_join(dat$concepts, by = c("condition_concept_id" = "concept_id")) %>% 
@@ -158,10 +150,11 @@ server <- function(input, output, session) {
 
     visNetwork(nodes, edges) %>% 
       visOptions(
-        highlightNearest = TRUE,
+        highlightNearest = list(enabled = TRUE, degree = 1, hover = T),
         nodesIdSelection = list(enabled = TRUE, style = "background: #f8f8f8; color: darkgreen;")
       ) %>% 
-      visEdges(arrows = "to")
+      visEdges(arrows = "to") %>% 
+      visLayout(randomSeed = 12)
   })
 }
 
@@ -172,4 +165,3 @@ extractConceptId <- function(displayName) {
 
 # Run the application 
 shinyApp(ui = ui, server = server)
-
