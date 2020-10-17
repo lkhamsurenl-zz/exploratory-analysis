@@ -10,10 +10,12 @@ library(glue)
 library(visNetwork)
 
 CONCEPTS_FILENAME <- "concepts.csv"
-RISK_FACTORS_FILENAME <- "risk_factors.csv"
+MEASUREMENT_REFERENCE_RANGE_FILENAME <- "measurement_reference_range.csv"
+RELATIONS_FILENAME <- "relations.csv"
 
 CONCEPTS_TAB <- "concepts"
-RISK_FACTORS_TAB <- "riskFactors"
+MEASUREMENT_REFERENCE_RANGE_TAB <- "referenceRanges"
+RELATIONS_AB <- "relations"
 VISUALIZATION_TAB <- "visualizations"
 
 ui <- function(request) {
@@ -33,7 +35,8 @@ ui <- function(request) {
           id = "options",
           type = "tabs",
           tabPanel("Concepts", value = CONCEPTS_TAB, dataTableOutput("conceptsCSV")),
-          tabPanel("Risk Factors", value = RISK_FACTORS_TAB, dataTableOutput("riskFactorsCSV")),
+          tabPanel("Measurement Range", value = MEASUREMENT_REFERENCE_RANGE_TAB, dataTableOutput("referenceRangeCSV")),
+          tabPanel("Relations", value = RELATIONS_AB, dataTableOutput("relationsCSV")),
           tabPanel("Visualization", value = VISUALIZATION_TAB, visNetworkOutput("graph"))
         )
       )
@@ -46,7 +49,8 @@ server <- function(input, output, session) {
   dat <- reactiveValues(
     concepts = read_csv(CONCEPTS_FILENAME, col_types = cols(concept_id = "c")) %>% 
       mutate(display_name = glue("{concept_name} ({concept_id})")),
-    riskFactors = read_csv(RISK_FACTORS_FILENAME, col_types = cols(condition_concept_id = "c", risk_concept_id = "c"))
+    measurementReferenceRanges = read_csv(MEASUREMENT_REFERENCE_RANGE_FILENAME, col_types = cols(concept_id = "c")),
+    relations = read_csv(RELATIONS_FILENAME, col_types = cols(cause_concept_id = "c", effect_concept_id = "c"))
   )
   
   observeEvent(input$options, {
@@ -58,19 +62,27 @@ server <- function(input, output, session) {
   })
   
   output$inputs <- renderUI({
-    req(input$options %in% c(CONCEPTS_TAB, RISK_FACTORS_TAB))
+    req(input$options %in% c(CONCEPTS_TAB, MEASUREMENT_REFERENCE_RANGE_TAB, RELATIONS_AB))
     
     if (input$options == CONCEPTS_TAB) {
       div(
         textInput("conceptId", "Concept ID"),
-        textInput("conceptName", "Concept Name")
+        textInput("conceptName", "Concept Name"),
+        selectInput("conceptType", "Concept Type", choices = c("CONDITION", "RISK_FACTOR", "MEASUREMENT", "ACTION")),
+        textInput("note", "Additional Note")
+      )
+    } else if (input$options == MEASUREMENT_REFERENCE_RANGE_TAB) {
+      div(
+        selectInput("measurementConcept", "Measurement Concept", choices = dat$concepts$display_name),
+        numericInput("lowRange", "Low Range", -Inf),
+        numericInput("highRange", "High Range", Inf)
       )
     } else {
       div(
-        selectInput("conditionConcept", "Condition Concept", choices = dat$concepts$display_name),
+        selectInput("effectConcept", "Effect", choices = dat$concepts$display_name),
         textInput("url", "Source URL"),
         hr(),
-        selectInput("riskConcepts", "Risk Factor Concepts", choices = dat$concepts$display_name, multiple = TRUE)
+        selectInput("causeConcept", "Causes", choices = dat$concepts$display_name, multiple = TRUE)
       )
     }
   })
@@ -79,16 +91,20 @@ server <- function(input, output, session) {
     dat$concepts
   })
   
-  output$riskFactorsCSV <- renderDataTable({
-    dat$riskFactors
+  output$referenceRangeCSV <- renderDataTable({
+    dat$measurementReferenceRanges
+  })
+  
+  output$relationsCSV <- renderDataTable({
+    dat$relations
   })
   
   # save output, depending on type
   observeEvent(input$save, {
-    req(input$options %in% c(CONCEPTS_TAB, RISK_FACTORS_TAB))
+    req(input$options %in% c(CONCEPTS_TAB, MEASUREMENT_REFERENCE_RANGE_TAB, RELATIONS_AB))
     
     if (input$options == CONCEPTS_TAB) {
-      req(input$conceptId, input$conceptName)
+      req(input$conceptId, input$conceptName, input$conceptType)
       
       # validate concept id
       isConceptIdNumeric <- grepl("^[0-9]+$", input$conceptId, perl = T)
@@ -103,32 +119,51 @@ server <- function(input, output, session) {
         add_row(
           concept_id = input$conceptId, 
           concept_name = input$conceptName, 
+          concept_type = input$conceptType,
+          note = input$note,
           display_name = glue("{input$conceptName} ({input$conceptId})")
         )
       
       dat$concepts %>% 
-        select(concept_id, concept_name) %>% 
+        select(-display_name) %>% 
         write_csv(CONCEPTS_FILENAME)
       
       # clear the input
       shinyjs::reset("conceptId")
       shinyjs::reset("conceptName")
-    } else {
-      req(input$conditionConcept, input$riskConcepts, input$url)
+    } else if (input$options == MEASUREMENT_REFERENCE_RANGE_TAB) {
+      req(input$measurementConcept, input$lowRange, input$highRange)
       
-      # there are list of risk concepts listed for same condition & url
-      dat$riskFactors <- dat$riskFactors %>% 
+      # there are list of effect concepts listed for same condition & url
+      dat$measurementReferenceRanges <- dat$measurementReferenceRanges %>% 
         add_row(
-          condition_concept_id = extractConceptId(input$conditionConcept), 
-          risk_concept_id = extractConceptId(input$riskConcepts), 
-          url = input$url
+          concept_id = extractConceptId(input$measurementConcept), 
+          low_range = input$lowRange, 
+          high_range = input$highRange
         )
-      dat$riskFactors %>% 
-        write_csv(RISK_FACTORS_FILENAME)
+      dat$measurementReferenceRanges %>% 
+        write_csv(MEASUREMENT_REFERENCE_RANGE_FILENAME)
       
       # clear the input
-      shinyjs::reset("conditionConcept")
-      shinyjs::reset("riskConcepts")
+      shinyjs::reset("measurementConcept")
+      shinyjs::reset("lowRange")
+      shinyjs::reset("highRange")
+    } else {
+      req(input$causeConcept, input$effectConcept, input$url)
+      
+      # there are list of effect concepts listed for same condition & url
+      dat$relations <- dat$relations %>% 
+        add_row(
+          cause_concept_id = extractConceptId(input$causeConcept), 
+          effect_concept_id = extractConceptId(input$effectConcept), 
+          url = input$url
+        )
+      dat$relations %>% 
+        write_csv(RELATIONS_FILENAME)
+      
+      # clear the input
+      shinyjs::reset("causeConcept")
+      shinyjs::reset("effectConcept")
       shinyjs::reset("url")
     }
   })
@@ -136,16 +171,20 @@ server <- function(input, output, session) {
   ### visualization
   output$graph <- renderVisNetwork({
     nodes <- dat$concepts %>% 
-      select(concept_name) %>%
-      transmute(id = concept_name, label = concept_name) %>% 
-      mutate(font.size = 10)
+      filter(concept_type != "MEASUREMENT") %>% 
+      select(concept_name, concept_type) %>%
+      mutate(id = concept_name, label = concept_name) %>% 
+      mutate(
+        font.size = 10, 
+        color = ifelse(concept_type == "CONDITION", "#FF0066", ifelse(concept_type == "RISK_FACTOR", "#3399FF", "#33FF66"))
+      ) 
     
-    edges <- dat$riskFactors %>% 
-      inner_join(dat$concepts, by = c("condition_concept_id" = "concept_id")) %>% 
-      inner_join(dat$concepts, by = c("risk_concept_id" = "concept_id")) %>% 
+    edges <- dat$relations %>% 
+      inner_join(dat$concepts, by = c("cause_concept_id" = "concept_id")) %>% 
+      inner_join(dat$concepts, by = c("effect_concept_id" = "concept_id")) %>% 
       transmute(
-        from = concept_name.y,
-        to = concept_name.x
+        from = concept_name.x,
+        to = concept_name.y
       )
 
     visNetwork(nodes, edges) %>% 
