@@ -53,6 +53,11 @@ server <- function(input, output, session) {
     relations = read_csv(RELATIONS_FILENAME, col_types = cols(cause_concept_id = "c", effect_concept_id = "c"))
   )
   
+  measurements <- reactive({
+    dat$concepts %>% 
+      filter(concept_type == "MEASUREMENT")
+  })
+  
   observeEvent(input$options, {
     if (input$options == VISUALIZATION_TAB) {
       shinyjs::disable("save")
@@ -73,13 +78,25 @@ server <- function(input, output, session) {
       )
     } else if (input$options == MEASUREMENT_REFERENCE_RANGE_TAB) {
       div(
-        selectInput("measurementConcept", "Measurement Concept", choices = dat$concepts$display_name),
+        selectizeInput(
+          "measurementConcept", "Measurement Concept", choices = measurements()$display_name,
+          options = list(
+            placeholder = 'Search',
+            onInitialize = I('function() { this.setValue(""); }')
+          )
+        ),
         numericInput("lowRange", "Low Range", -Inf),
         numericInput("highRange", "High Range", Inf)
       )
     } else {
       div(
-        selectInput("effectConcept", "Effect", choices = dat$concepts$display_name),
+        selectizeInput(
+          "effectConcept", "Effect", choices = dat$concepts$display_name,
+          options = list(
+            placeholder = 'Search',
+            onInitialize = I('function() { this.setValue(""); }')
+          )
+        ),
         textInput("url", "Source URL"),
         hr(),
         selectInput("causeConcept", "Causes", choices = dat$concepts$display_name, multiple = TRUE)
